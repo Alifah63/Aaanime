@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Favorites</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #ffe6f7;
+            /* Pastel pink */
+        }
+
+        /* Create a navbar for the home and favourite anchor */
+        .navbar {
+            background-color: #333;
+            color: #fff;
+            padding: 30px;
+            text-align: right;
+            display: flex;
+        }
+
+        .navbar a {
+            display: inline-block;
+            padding-left: 10px;
+            padding-right: 10px;
+            color: #fff;
+            text-decoration: none;
+            margin: 0;
+        }
+
+        /* Style the favorite anime list */
+        .favorite-anime {
+            margin-bottom: 20px;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .favorite-anime img {
+            width: 100%;
+            max-width: 200px;
+            height: auto;
+            border-radius: 10px 10px 0 0;
+            margin-right: 20px;
+        }
+
+        .favorite-anime h2 {
+            flex: 1;
+            margin-top: 0;
+        }
+
+        .favorite-anime p {
+            margin-bottom: 10px;
+        }
+
+        .favorite-anime form {
+            margin-bottom: 10px;
+        }
+
+        .favorite-anime .delete-btn {
+            background-color: #4CAF50;
+            color: #fff;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            margin-left: auto;
+        }
+
+        .favorite-anime .delete-btn:hover {
+            background-color: #3e8e41;
+        }
+
+        /* Style the alert */
+        .alert {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: azure;
+            border: 1px solid #ccc;
+            padding: 10px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+            display: none;
+        }
+
+        .alert.show {
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="navbar" style="padding-left: 1300px;">
+        <a href="index.html">Home</a>
+        <a href="favorites.html">Favorites</a>
+    </div>
+    <div id="favorites-list"></div>
+
+    <div class="alert" id="alert">
+        <p id="alert-message"></p>
+    </div>
+
+    <script>
+        (async () => {
+            const favorites = JSON.parse(localStorage.getItem('favorites') || '[]');
+            const favoritesList = document.getElementById('favorites-list');
+
+            favorites.forEach((favorite) => {
+                fetch(`https://api.jikan.moe/v4/anime/${favorite.mal_id}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        const favoriteAnime = document.createElement('div');
+                        favoriteAnime.className = 'favorite-anime';
+                        favoriteAnime.innerHTML = `
+                            <img src="${data.data.images.jpg.image_url}" alt="${data.data.title} image">
+                            <div>
+                                <h2>${data.data.title}</h2>
+                                <p>Score: ${data.data.score}</p>
+                                <p>Genre: ${data.data.genres ? data.data.genres.map((genre) => genre.name).join(', ') : 'Unknown'}</p>
+                                <form>
+                                    <input type="text" id="comment-${favorite.mal_id}" placeholder="Add a comment...">
+                                    <button type="submit">Comment</button>
+                                </form>
+                                <p id="comment-display-${favorite.mal_id}"></p>
+                            </div>
+                            <button class="delete-btn" data-mal-id="${favorite.mal_id}">Delete</button>
+                        `;
+                        favoritesList.appendChild(favoriteAnime);
+
+                        // Load comment from local storage
+                        const comment = localStorage.getItem(`comment-${favorite.mal_id}`);
+                        const commentDisplay = document.getElementById(`comment-display-${favorite.mal_id}`);
+                        if (comment) {
+                            commentDisplay.textContent = comment;
+                        }
+                        // Add event listener to comment form
+                        const commentForm = favoriteAnime.querySelector('form');
+                        commentForm.addEventListener('submit', (e) => {
+                            e.preventDefault();
+                            const commentInput = commentForm.querySelector('input');
+                            const newComment = commentInput.value.trim();
+                            if (newComment) {
+                                localStorage.setItem(`comment-${favorite.mal_id}`, newComment);
+                                const commentDisplay = document.getElementById(`comment-display-${favorite.mal_id}`);
+                                commentDisplay.textContent = newComment;
+                                commentInput.value = '';
+                                showAlert(`Comment added successfully!`);
+                            }
+                        });
+
+                        // Add event listener to delete button
+                        const deleteBtn = favoriteAnime.querySelector('.delete-btn');
+                        deleteBtn.addEventListener('click', () => {
+                            const confirmDelete = confirm(`Are you sure you want to delete ${data.data.title} from your favorites?`);
+                            if (confirmDelete) {
+                                const index = favorites.indexOf(favorite);
+                                if (index !== -1) {
+                                    favorites.splice(index, 1);
+                                    localStorage.setItem('favorites', JSON.stringify(favorites));
+                                    favoriteAnime.remove();
+                                    showAlert(`Removed ${data.data.title} from favorites`);
+                                }
+                            }
+                        });
+                    });
+            });
+        })();
+    </script>
+</body>
+
+</html>
